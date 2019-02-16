@@ -48,9 +48,9 @@ def out_bytecode(fun,arch):
     print "disasm: \n%s"%(disasm(HEX.decode("hex")))
 
 
-####################
-#find args for func#
-####################
+#################
+#get func args #
+################
 
 
 def init_func_find_dic():
