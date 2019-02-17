@@ -10,9 +10,9 @@ syscall_num = {}
 func_list = {}
 
 def printerr():
-    print "use python syscall.py 'fun(reg,reg,reg,reg,...)' x64/x86 or syscall.py -f funname"
+    print "use python syscall.py 'fun(reg,reg,reg,reg,...)' x64/x86 or syscall.py -f funname x64"
 
-def init_syscall_num_dic():
+def init_syscall_num_dic(arch):
     f = open(".x64_syscall.dat","r")
     line = f.readline()
     while line:
@@ -23,6 +23,7 @@ def init_syscall_num_dic():
 def out_bytecode(fun,arch):
     func_name = fun.split("(")[0]
     arg = re.findall("\((.{,})\)",fun)
+    end = ""
     if len(arg) > 1:
         printerr()
         exit(0)
@@ -31,17 +32,18 @@ def out_bytecode(fun,arch):
     if arch == "x64":
         context.arch = "amd64"
         reglist = ["rax","rdi","rsi","rdx","r10","r8","r9"]
-    elif arch == "x32":
+        end = "syscall\n"
+    elif arch == "x86":
         context.arch = "i386"
-        reglist = []
+        reglist = ["eax","ebx","ecx","edx","esi","edi"]
+        end = "int 0x80\n"
     dat = syscall_num[func_name]
     _asm = "xor %s,%s\n"%(reglist[0],reglist[0])
     _asm += "mov %s,%d\n"%(reglist[0],int(dat[0]))
     
     for i in range(dat[1]):
         _asm += "mov %s,%s\n"%(reglist[i + 1],args[i])
-
-    _asm += "syscall\n"
+    _asm += end
     print "ASM: \n%s"%_asm
     HEX = asm(_asm).encode("hex")
     print "HEX: %s\n"%(HEX)
@@ -53,17 +55,29 @@ def out_bytecode(fun,arch):
 ################
 
 
-def init_func_find_dic():
-    f = open(".x64_syscall.dat","r")
-    line = f.readline()
-    while line:
-        ss = line.strip().split(",")
-        func_list[ss[1]] = ss[2:]
+def init_func_find_dic(arch):
+    if arch == "x64":
+        f = open(".x64_syscall.dat","r")
         line = f.readline()
+        while line:
+            ss = line.strip().split(",")
+            func_list[ss[1]] = ss[2:]
+            line = f.readline()
+    elif arch == "x86":
+        f = open(".x86_syscall.dat","r")
+        line = f.readline()
+        while line:
+            ss = line.strip().split(",")
+            func_list[ss[1]] = ss[2:]
+            line = f.readline()
 
-def find_syscall(funcname):
+def find_syscall(funcname,arch):
+    if arch == "x64":
+        ll = 7
+    elif arch == "x86":
+        ll = 6
     try:
-        count = 7 - func_list[funcname].count("")
+        count = ll - func_list[funcname].count("")
         out = funcname + "("
         for i in range(count):
             out += func_list[funcname][i]
@@ -75,19 +89,17 @@ def find_syscall(funcname):
         print "not found!"
 
 if __name__=="__main__":
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 3 and len(sys.argv) != 4:
         printerr()
         exit(0)
     
     l = sys.argv
-    # print l
+    print l
     fun = l[1]
     arch = l[2]
     if fun == "-f":
-        init_func_find_dic()
-        find_syscall(arch)
+        init_func_find_dic(l[3])
+        find_syscall(arch,l[3])
     else:
-        init_syscall_num_dic()
+        init_syscall_num_dic(arch)
         out_bytecode(fun,arch)
-        
-    
